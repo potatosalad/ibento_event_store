@@ -41,14 +41,10 @@ defmodule Ibento.EventStore.MixProject do
       name: :ibento_event_store,
       files: [
         "CHANGELOG*",
-        "include",
         "lib",
         "LICENSE*",
         "mix.exs",
-        "priv",
-        "README*",
-        "rebar.config",
-        "src"
+        "README*"
       ],
       licenses: ["Mozilla Public License Version 2.0"],
       links: %{
