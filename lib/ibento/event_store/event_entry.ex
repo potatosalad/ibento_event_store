@@ -28,7 +28,7 @@ defprotocol Ibento.EventStore.EventEntry do
 
   @fallback_to_any true
 
-  @spec cast(term) :: {:ok, t()} | :error | {:error, Ecto.Changeset.t()}
+  @spec cast(term()) :: {:ok, t()} | :error | {:error, Ecto.Changeset.t()}
   def cast(value)
 end
 

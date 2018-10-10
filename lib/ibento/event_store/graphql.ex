@@ -27,6 +27,69 @@ defmodule Ibento.EventStore.GraphQL do
               variables: nil
   end
 
+  def connection(module, opts) when is_list(opts) do
+    as_stream = Keyword.get(opts, :as_stream, false)
+    causation = Keyword.get(opts, :causation, nil)
+    correlation = Keyword.get(opts, :correlation, nil)
+    debug = Keyword.get(opts, :debug, false)
+    debug_streams = Keyword.get(opts, :debug_streams, false)
+    limit = Keyword.get(opts, :limit, 100)
+    offset = Keyword.get(opts, :offset, nil)
+    order = Keyword.get(opts, :order, [])
+    resolve = Keyword.get(opts, :resolve, nil)
+    stop_limit = Keyword.get(opts, :stop_limit, 1000)
+    streams = Keyword.get(opts, :streams, ["$all"])
+
+    resolve =
+      if is_nil(resolve) do
+        &__MODULE__.resolve/1
+      else
+        resolve
+      end
+
+    connection =
+      struct(module,
+        causation: causation,
+        correlation: correlation,
+        debug: debug,
+        debug_streams: debug_streams,
+        limit: limit,
+        offset: offset,
+        order: order,
+        resolve: resolve,
+        stop_limit: stop_limit,
+        streams: streams
+      )
+
+    if as_stream == true do
+      module.to_stream(connection)
+    else
+      connection
+    end
+  end
+
+  def resolve(value) do
+    case read_event_output(value) do
+      {:ok, event = %Ibento.EventStore.Event{type: type}} ->
+        case resolve_event_type(type) do
+          {:ok, module} ->
+            case Ibento.EventStore.Event.load(module, event) do
+              {:ok, event} ->
+                event
+
+              :error ->
+                value
+            end
+
+          :error ->
+            value
+        end
+
+      :error ->
+        value
+    end
+  end
+
   @impl Ibento.EventStore
   @spec put_event_input(event_entry :: Ibento.EventStore.EventEntry.t() | term()) ::
           {:ok, EventInput.t()} | :error | {:error, Ecto.Changeset.t()}
@@ -107,6 +170,82 @@ defmodule Ibento.EventStore.GraphQL do
 
       {:error, changeset = %Ecto.Changeset{}} ->
         {:error, changeset}
+    end
+  end
+
+  @impl Ibento.EventStore
+  @spec read_event_output(output :: term()) :: {:ok, Ibento.EventStore.Event.t()} | :error | {:error, term()}
+  def read_event_output(event = %Ibento.EventStore.Event{}) do
+    {:ok, event}
+  end
+
+  def read_event_output(
+        output = %{
+          "eventId" => event_id,
+          "type" => type,
+          "correlation" => correlation,
+          "causation" => causation,
+          "data" => data,
+          "metadata" => metadata,
+          "debug" => debug
+        }
+      )
+      when is_binary(event_id) and is_binary(type) and is_binary(data) and is_boolean(debug) do
+    cursor = Map.get(output, "cursor", nil)
+    streams = Map.get(output, "streams", nil)
+
+    case Jason.decode(data) do
+      {:ok, data} when is_map(data) ->
+        case Jason.decode(metadata) do
+          {:ok, metadata} when is_map(metadata) ->
+            event = %Ibento.EventStore.Event{
+              id: event_id,
+              type: type,
+              correlation: correlation,
+              causation: causation,
+              data: data,
+              metadata: metadata,
+              debug: debug,
+              cursor: cursor,
+              streams: streams
+            }
+
+            read_event_output(event)
+
+          error = {:error, _} ->
+            error
+        end
+
+      error = {:error, _} ->
+        error
+    end
+  end
+
+  def read_event_output(_) do
+    :error
+  end
+
+  @impl Ibento.EventStore
+  def resolve_event_type(type) when is_binary(type) do
+    result =
+      try do
+        atom = String.to_existing_atom(type)
+        {:ok, atom}
+      catch
+        _, _ ->
+          :error
+      end
+
+    case result do
+      {:ok, module} when is_atom(module) ->
+        if Code.ensure_loaded?(module) do
+          {:ok, module}
+        else
+          :error
+        end
+
+      :error ->
+        :error
     end
   end
 

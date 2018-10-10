@@ -1,25 +1,25 @@
 defmodule Ibento.UUID do
-  @type uuid_base32() :: <<_::208>>
+  @type uuid_base32crockford() :: <<_::208>>
   @type uuid_base64url() :: <<_::176>>
   @type uuid_binary() :: <<_::128>>
   @type uuid_md5() :: <<_::256>>
   @type uuid_string() :: <<_::288>>
-  @type uuid() :: uuid_base32() | uuid_base64url() | uuid_binary() | uuid_md5() | uuid_string()
+  @type uuid() :: uuid_base32crockford() | uuid_base64url() | uuid_binary() | uuid_md5() | uuid_string()
 
   @type t() :: uuid()
 
-  @spec base32(uuid :: uuid() | term()) :: {:ok, uuid_base32()} | :error
-  def base32(<<_::bitstring-size(128)>> = uuid) do
-    {:ok, Base.encode32(uuid, case: :lower, padding: false)}
+  @spec base32crockford(uuid :: uuid() | term()) :: {:ok, uuid_base32crockford()} | :error
+  def base32crockford(<<_::bitstring-size(128)>> = uuid) do
+    {:ok, Ibento.Base32Crockford.encode(uuid, case: :upper, padding: false)}
   end
 
-  def base32(<<_::bitstring-size(208)>> = uuid) do
+  def base32crockford(<<_::bitstring-size(208)>> = uuid) do
     {:ok, uuid}
   end
 
-  def base32(uuid) do
+  def base32crockford(uuid) do
     with {:ok, uuid} <- binary(uuid) do
-      base32(uuid)
+      base32crockford(uuid)
     end
   end
 
@@ -48,7 +48,7 @@ defmodule Ibento.UUID do
   end
 
   def binary(<<_::bitstring-size(208)>> = uuid) do
-    with {:ok, uuid} <- Base.decode32(uuid, case: :mixed, padding: false) do
+    with {:ok, uuid} <- Ibento.Base32Crockford.decode(uuid, case: :mixed, padding: false) do
       binary(uuid)
     end
   end
@@ -99,9 +99,9 @@ defmodule Ibento.UUID do
     end
   end
 
-  @spec base32!(uuid :: uuid() | term()) :: uuid_base32() | no_return()
-  def base32!(uuid) do
-    case base32(uuid) do
+  @spec base32crockford!(uuid :: uuid() | term()) :: uuid_base32crockford() | no_return()
+  def base32crockford!(uuid) do
+    case base32crockford(uuid) do
       {:ok, value} ->
         value
 
