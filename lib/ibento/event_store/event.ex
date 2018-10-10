@@ -8,6 +8,7 @@ defprotocol Ibento.EventStore.Event do
           data: event_data,
           metadata: map(),
           debug: boolean(),
+          inserted_at: nil | binary() | DateTime.t(),
           cursor: nil | binary(),
           streams: nil | streams()
         }
@@ -25,6 +26,7 @@ defprotocol Ibento.EventStore.Event do
             data: %{},
             metadata: %{},
             debug: false,
+            inserted_at: nil,
             cursor: nil,
             streams: []
 
@@ -35,10 +37,10 @@ defprotocol Ibento.EventStore.Event do
 end
 
 defimpl Ibento.EventStore.Event, for: Any do
-  def load(type, event = %Ibento.EventStore.Event{data: event_data}) when is_map(event_data) do
+  def load(type, event = %Ibento.EventStore.Event{data: event_data, inserted_at: inserted_at}) when is_map(event_data) do
     case Ibento.EventStore.EventData.load(type, event_data) do
       {:ok, event_data} ->
-        event = %Ibento.EventStore.Event{event | data: event_data}
+        event = %Ibento.EventStore.Event{event | data: event_data, inserted_at: try_load_datetime(inserted_at)}
         {:ok, event}
 
       :error ->
@@ -51,5 +53,24 @@ defimpl Ibento.EventStore.Event, for: Any do
 
   def load(_, _) do
     :error
+  end
+
+  @doc false
+  defp try_load_datetime(value = %DateTime{}) do
+    value
+  end
+
+  defp try_load_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime = %DateTime{}, _offset} ->
+        datetime
+
+      {:error, _reason} ->
+        value
+    end
+  end
+
+  defp try_load_datetime(nil) do
+    nil
   end
 end

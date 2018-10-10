@@ -193,6 +193,7 @@ defmodule Ibento.EventStore.GraphQL do
       when is_binary(event_id) and is_binary(type) and is_binary(data) and is_boolean(debug) do
     cursor = Map.get(output, "cursor", nil)
     streams = Map.get(output, "streams", nil)
+    inserted_at = Map.get(output, "insertedAt", nil)
 
     case Jason.decode(data) do
       {:ok, data} when is_map(data) ->
@@ -206,6 +207,7 @@ defmodule Ibento.EventStore.GraphQL do
               data: data,
               metadata: metadata,
               debug: debug,
+              inserted_at: try_load_datetime(inserted_at),
               cursor: cursor,
               streams: streams
             }
@@ -293,5 +295,24 @@ defmodule Ibento.EventStore.GraphQL do
 
     events = [event | events]
     {event_id, events}
+  end
+
+  @doc false
+  defp try_load_datetime(value = %DateTime{}) do
+    value
+  end
+
+  defp try_load_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime = %DateTime{}, _offset} ->
+        datetime
+
+      {:error, _reason} ->
+        value
+    end
+  end
+
+  defp try_load_datetime(nil) do
+    nil
   end
 end

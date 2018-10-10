@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.4 (2018-10-10)
+
+* Add support for inserted_at field.
+
 ## 0.0.3 (2018-10-10)
 
 * Minor fix for event resolver.
