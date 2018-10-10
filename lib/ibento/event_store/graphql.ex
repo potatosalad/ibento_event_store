@@ -78,11 +78,11 @@ defmodule Ibento.EventStore.GraphQL do
                 event
 
               :error ->
-                value
+                event
             end
 
           :error ->
-            value
+            event
         end
 
       :error ->
