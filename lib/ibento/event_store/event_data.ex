@@ -58,11 +58,19 @@ defimpl Ibento.EventStore.EventData, for: Any do
     end
   end
 
+  # taken from https://github.com/elixir-ecto/ecto_sql/blob/f3bc7f509c1c7780dcaaf58ef8c7b86bd68fd08f/lib/ecto/adapters/sql.ex#L501-L504
+  defp dump_embed(type, value) do
+    Ecto.Type.dump(type, value, fn
+      {:embed, _} = type, value -> dump_embed(type, value)
+      _type, value -> {:ok, value}
+    end)
+  end
+
   def cast(struct = %{__struct__: module}) when is_atom(module) do
     if Code.ensure_loaded?(module) and function_exported?(module, :__schema__, 1) do
       embed = Ecto.Embedded.struct(Ibento.EventStore.Embedded, :data, cardinality: :one, related: module)
 
-      case Ecto.Type.dump({:embed, embed}, struct) do
+      case dump_embed({:embed, embed}, struct) do
         {:ok, value} when is_map(value) ->
           with {:ok, value} <- Jason.encode(value),
                {:ok, value} <- Jason.decode(value) do
