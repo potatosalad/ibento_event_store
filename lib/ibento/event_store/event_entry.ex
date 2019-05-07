@@ -1,7 +1,9 @@
 defprotocol Ibento.EventStore.EventEntry do
   @type streams() :: [binary()]
   @type long(event_data) :: %__MODULE__{
-          id: nil | Ibento.UUID.t(),
+          id: nil | Ibento.ULID.t(),
+          ingest_id: nil | Ibento.ULID.t(),
+          vclock: nil | non_neg_integer(),
           type: nil | binary(),
           correlation: nil | binary(),
           causation: nil | binary(),
@@ -18,6 +20,8 @@ defprotocol Ibento.EventStore.EventEntry do
 
   @enforce_keys [:data]
   defstruct id: nil,
+            ingest_id: nil,
+            vclock: nil,
             type: nil,
             correlation: nil,
             causation: nil,
@@ -64,24 +68,35 @@ defimpl Ibento.EventStore.EventEntry, for: Any do
 
   @doc false
   defp cast_options(event_data, opts) when is_list(opts) do
-    event_id = Keyword.get(opts, :event_id, nil)
-    type = Keyword.get(opts, :type, nil)
-    correlation = Keyword.get(opts, :correlation, nil)
-    causation = Keyword.get(opts, :causation, nil)
-    metadata = Keyword.get(opts, :metadata, %{})
-    debug = Keyword.get(opts, :debug, false)
-    streams = Keyword.get(opts, :streams, [])
+    event_entry = %Ibento.EventStore.EventEntry{data: event_data}
+    cast_options!(opts, event_entry)
+  end
 
-    %Ibento.EventStore.EventEntry{
-      id: event_id,
-      type: type,
-      correlation: correlation,
-      causation: causation,
-      data: event_data,
-      metadata: metadata,
-      debug: debug,
-      streams: streams
-    }
+  @doc false
+  defp cast_options!([{key, value} | rest], acc) do
+    new_acc =
+      case key do
+        _ when is_binary(value) and key in [:event_id, :ingest_id, :type, :correlation, :causation] ->
+          %{acc | key => value}
+        _ when is_integer(value) and key in [:vclock] ->
+          %{acc | key => value}
+        _ when is_nil(value) and key in [:event_id, :ingest_id, :vclock, :type, :correlation, :causation] ->
+          %{acc | key => value}
+        _ when is_map(value) and key in [:metadata] ->
+          %{acc | key => value}
+        _ when is_boolean(value) and key in [:debug] ->
+          %{acc | key => value}
+        _ when is_list(value) and key in [:streams] ->
+          %{acc | key => value}
+        _ ->
+          raise(ArgumentError, "bad option {key, value} for #{inspect({key, value})}")
+      end
+
+    cast_options!(rest, new_acc)
+  end
+
+  defp cast_options!([], acc) do
+    acc
   end
 end
 

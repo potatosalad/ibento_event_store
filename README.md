@@ -10,7 +10,7 @@ by adding `ibento_event_store` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ibento_event_store, "~> 0.0.2"}
+    {:ibento_event_store, "~> 0.0.4"}
   ]
 end
 ```

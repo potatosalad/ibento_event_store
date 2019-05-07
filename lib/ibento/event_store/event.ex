@@ -1,7 +1,9 @@
 defprotocol Ibento.EventStore.Event do
   @type streams() :: [binary()]
   @type long(event_data) :: %__MODULE__{
-          id: Ibento.UUID.t(),
+          id: Ibento.ULID.t(),
+          ingest_id: Ibento.ULID.t(),
+          vclock: non_neg_integer(),
           type: binary(),
           correlation: nil | binary(),
           causation: nil | binary(),
@@ -20,6 +22,8 @@ defprotocol Ibento.EventStore.Event do
 
   @enforce_keys [:data]
   defstruct id: nil,
+            ingest_id: nil,
+            vclock: nil,
             type: nil,
             correlation: nil,
             causation: nil,

@@ -1,4 +1,6 @@
 defmodule Ibento.ULID do
+  @type t() :: Ibento.UUID.t()
+
   use Bitwise
 
   def binallocate(size) when is_integer(size) and size >= 0 and size <= 0xFFFFFFFFFF do
